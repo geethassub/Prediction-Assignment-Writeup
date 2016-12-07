@@ -1,0 +1,123 @@
+---
+title: "Prediction Assignment Writeup"
+author: "Geetha"
+date: "6 December 2016"
+output: html_document
+---
+#Synopsis:
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, the goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants to predict the manner in which they did the exercise. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. 
+
+#Data
+The training data is available here: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+The test data is available here:https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
+
+
+The data is downloaded from the above link and uploaded here as train data and test data. All the missing values were replaced with NA. To enable reproducability the seed has been set.
+
+```{r}
+set.seed(123)
+train_data <- read.csv(file.path("D:/Geetha/Coursera/R/Assignment 6/pml-training.csv"), na.strings = c("NA","#DIV/0!", ""))
+test_data <- read.csv(file.path("D:/Geetha/Coursera/R/Assignment 6/pml-testing.csv"),na.strings = c("NA","#DIV/0!", ""))
+```
+
+#Libraries
+Download the necessary libraries
+```{r}
+library(caret)
+library(randomForest)
+library(rpart)
+library(rpart.plot)
+library(rattle)
+```
+
+On further analysis of the data, many columns were found which didnt have any values.Those columns were deleted to have a meaningful data. There are currently 19622 observations in train data and 20 observations in test data.
+```{r}
+train_data <- train_data[, colSums(is.na(train_data))==0]
+test_data <- test_data[, colSums(is.na(test_data))==0] 
+
+dim(train_data);dim(test_data)
+
+```
+
+#Cross validation
+
+To enable cross validation, the training data is now split into train_data1 and test_data1
+
+```{r}
+split <- createDataPartition(y = train_data$classe, p = 0.75, list = FALSE)
+train_data1 <- train_data[split, ]
+test_data1 <- train_data[-split, ]
+dim(train_data1);dim(test_data1)
+```
+The manner in which the exercise was performed is available in the column "classe". There are five different fashions - exactly according to the specification (Class A), throwing the elbows to the front (Class B), lifting the dumbbell only halfway (Class C), lowering the dumbbell only halfway (Class D) and throwing the hips to the front (Class E). The goal of this exercise is to predict the manner ("classe") in which the exercise was performed.
+
+#Prediction Model 1 - Decision Tree
+
+The first model used for prediction is Decision Tree.
+
+```{r}
+
+dt <- rpart(classe~., data = train_data1[, -c(1:7)], method = "class")
+predict2 <- predict(dt, test_data1, type = "class")
+
+CMR1 <- confusionMatrix(predict2, test_data1$classe)
+CMR1
+
+rpart.plot(dt, main = "Tree", extra = 102, under = TRUE, faclen = 0)
+
+
+```
+
+Result:
+
+The accuracy from this prediction model is 0.739.
+
+
+#Prediction Model 2 - Random Forest
+The first method used for prediction is random forest. 
+
+```{r}
+rf <- randomForest(classe~., data = train_data1[,-c(1:7)], method = "class")
+predict1 <- predict(rf, test_data1, type = "class")
+
+CMR2 <- confusionMatrix(predict1, test_data1$classe)
+CMR2
+```
+
+Result:
+
+The accuracy from this prediction model is 0.997.
+
+#Prediction Model 3 - Combined Prediction
+
+This moded combines the prediction from Decision tree and Random forest
+
+```{r}
+cmbd_data <- data.frame(predict1, predict2, y = test_data1$classe)
+cmbd_predict <- train(y~., data = cmbd_data, model = "gam")
+predict3 <- predict(cmbd_predict, test_data1$classe)
+CMR3 <- confusionMatrix(predict3, test_data1$classe)
+CMR3
+
+```
+
+Result:
+
+The accuracy from this predition model is 0.995
+
+#Decision:
+
+Random forest has an accuracy of 0.996 and Decision tree has an accuracy of 0.739 and Combined model has an accuracy of 0.995. From these results it is clear that Random Forest algorithm performs better than Decision tree and Combined model. Further, out of sample error is 0.004 or 0.4% in random forest model. Out of sample error is calculated as: 1 - accuracy for predictions made against the cross validation set. Hence Random Forest model is choosen. The selected model(Random Forest) will be applied on the test data set.
+
+#Test Scenario
+Randon forest model is now applied on test data with 20 cases.
+
+```{r}
+predictfinal <- predict(rf, test_data, type = "class")
+predictfinal
+```
+
+
+
+
+
